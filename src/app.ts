@@ -11,7 +11,7 @@ app.use(cors(corsConfig));
 
 // Serve static assets
 app.use(
-  "/assets",
+  "/",
   (_req, res, next) => {
     // Additional headers for static assets
     res.header("Access-Control-Expose-Headers", "Content-Length, Content-Type");
