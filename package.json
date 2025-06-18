@@ -1,0 +1,38 @@
+{
+  "name": "data.vlaanderen.be-assets",
+  "version": "1.0.0",
+  "author": "Digitaal Vlaanderen <https://data.vlaanderen.be/id/organisatie/OVO002949>",
+  "description": "A project to self-host all static webuniversum assets for data.vlaanderen.be",
+  "main": "dist/index.js",
+  "engines": {
+    "npm": ">=11.0.0",
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "dev": "ts-node src/app.ts",
+    "extract": "ts-node src/extract.ts",
+    "clean": "rimraf dist assets"
+  },
+  "keywords": [
+    "assets",
+    "self-host",
+    "webuniversum",
+    "data.vlaanderen.be"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.3",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@govflanders/vl-ui-design-system-style": "^3.1.4",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "ts-node": "^10.9.0"
+  }
+}
