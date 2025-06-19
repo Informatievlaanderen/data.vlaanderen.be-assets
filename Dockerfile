@@ -1,6 +1,5 @@
 FROM node:24-alpine
 
-
 # Set working directory
 WORKDIR /app
 
@@ -9,23 +8,25 @@ WORKDIR /app
 ARG NPM_TOKEN
 RUN echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > /app/.npmrc
 
-# Copy package files
-COPY package.json yarn.lock ./
+# Copy package files first
+COPY package.json ./
 COPY .npmrc ./
 
+# Install dependencies first
+RUN yarn install --frozen-lockfile
 
-# Copy source code
+# Copy source code after dependencies are installed
 COPY tsconfig.json ./
 COPY src/ ./src/
 
-# Install dependencies
-RUN yarn install 
-
-# Copy existing assets
+# Copy existing assets before extraction
 COPY assets/ ./assets/
 
-# Build and extract assets
-RUN yarn build && yarn extract
+# Build TypeScript first (before extraction which needs the compiled code)
+RUN yarn build
+
+# Extract assets 
+RUN yarn extract
 
 # Expose port
 EXPOSE 3000

@@ -9,7 +9,26 @@ const app = express();
 // Configure CORS
 app.use(cors(corsConfig));
 
-// Serve static assets
+// Root endpoint with information
+app.get("/", (_req, res) => {
+  const extractor = new AssetExtractor(config.packages);
+  const assets = extractor.getAvailableAssets();
+  res.json({
+    name: "data.vlaanderen.be-assets",
+    description: "Self-hosted webuniversum assets",
+    message: "Assets are served under /assets path",
+    endpoints: {
+      assets: "/assets/*",
+    },
+    packages: Object.keys(assets),
+    assets,
+    totalFiles: Object.values(assets).reduce(
+      (sum, files) => sum + files.length,
+      0
+    ),
+  });
+});
+// Remove fallthrough: false to allow requests to continue to other middleware
 app.use(
   "/",
   (_req, res, next) => {
@@ -17,41 +36,8 @@ app.use(
     next();
   },
   express.static(path.join(__dirname, "../assets"))
+  // Removed fallthrough: false - this was causing the 404s
 );
-
-// Root endpoint with information
-app.get("/", (req, res) => {
-  res.json({
-    name: "data.vlaanderen.be-assets",
-    description: "Self-hosted webuniversum assets",
-    message: "Assets are served under /assets path",
-  });
-});
-// List available assets
-app.get("/api", (req, res) => {
-  try {
-    const extractor = new AssetExtractor(config.packages);
-    const assets = extractor.getAvailableAssets();
-    res.json({
-      packages: Object.keys(assets),
-      assets,
-      totalFiles: Object.values(assets).reduce(
-        (sum, files) => sum + files.length,
-        0
-      ),
-    });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to retrieve assets" });
-  }
-});
-
-// Health check endpoint
-app.get("/health", (_req, res) => {
-  res.json({
-    status: "ok",
-    timestamp: new Date().toISOString(),
-  });
-});
 
 const server = app.listen(config.port, () => {
   console.log(`📁 Assets available at: http://localhost:${config.port}/`);
