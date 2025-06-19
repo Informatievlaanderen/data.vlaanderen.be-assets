@@ -11,7 +11,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/app.js",
-    "dev": "ts-node src/app.ts",
+    "dev": "npm run extract && ts-node src/app.ts",
     "extract": "ts-node src/extract.ts",
     "clean": "rimraf dist assets"
   },

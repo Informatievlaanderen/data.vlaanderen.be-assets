@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { glob } from "glob";
 import type { PackageConfig } from "./types/config";
 
 export class AssetExtractor {
@@ -12,7 +13,6 @@ export class AssetExtractor {
     console.log("Starting asset extraction...");
 
     for (const pkg of this.packages) {
-      console.log(`Extracting assets from ${pkg.name}...`);
       try {
         await this.extractPackageAssets(pkg);
         console.log(`✓ Extracted assets from ${pkg.name}`);
@@ -31,34 +31,85 @@ export class AssetExtractor {
     const packagePath = path.join("node_modules", pkg.name);
     const outputPath = path.join("assets", pkg.outputDir);
 
+    if (!fs.existsSync(packagePath)) {
+      throw new Error(`Package ${pkg.name} not found in node_modules`);
+    }
+
     // Ensure output directory exists
     await this.ensureDirectory(outputPath);
 
     // Copy assets based on configured paths
     for (const assetPath of pkg.assetPaths) {
       const sourcePath = path.join(packagePath, assetPath);
-      await this.copyAssets(sourcePath, outputPath, assetPath);
+      await this.copyAssets(sourcePath, packagePath, outputPath);
     }
   }
 
   /**
-   * Copy assets from source to destination
+   * Copy assets from source to destination, preserving directory structure but removing /build/assets
    */
   private async copyAssets(
-    sourcePath: string,
-    outputPath: string,
-    pattern: string
+    pattern: string,
+    packageRoot: string,
+    outputPath: string
   ): Promise<void> {
-    const glob = await import("glob");
+    try {
+      const files = glob.globSync(pattern);
 
-    const files = glob.globSync(sourcePath);
+      for (const file of files) {
+        const stat = fs.statSync(file);
 
-    for (const file of files) {
-      const relativePath = path.relative(path.join("node_modules"), file);
-      const destPath = path.join(outputPath, path.basename(file));
+        if (stat.isFile()) {
+          // Calculate relative path from package root
+          const relativePath = path.relative(packageRoot, file);
 
-      await this.copyFile(file, destPath);
+          // Remove 'build/assets/' from the beginning of the path if it exists
+          const cleanedPath = this.removeBuildAssetsFromPath(relativePath);
+
+          const destPath = path.join(outputPath, cleanedPath);
+
+          await this.copyFile(file, destPath);
+          console.log(
+            `  Copied: ${relativePath} -> ${path.relative("assets", destPath)}`
+          );
+        } else if (stat.isDirectory()) {
+          // Create directory structure (also removing build/assets from path)
+          const relativePath = path.relative(packageRoot, file);
+          const cleanedPath = this.removeBuildAssetsFromPath(relativePath);
+
+          // Only create directory if there's actually a path left after cleaning
+          if (cleanedPath) {
+            const destPath = path.join(outputPath, cleanedPath);
+            await this.ensureDirectory(destPath);
+            console.log(`  Created directory: ${cleanedPath}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`No files found for pattern: ${pattern}`);
     }
+  }
+
+  /**
+   * Remove 'build/assets/' from the beginning of a path
+   */
+  private removeBuildAssetsFromPath(filePath: string): string {
+    const segments = filePath.split(path.sep);
+
+    // Remove 'build' and 'assets' from the beginning if they exist
+    let startIndex = 0;
+
+    if (segments[0] === "build") {
+      startIndex = 1;
+    }
+
+    if (segments[startIndex] === "assets") {
+      startIndex++;
+    }
+
+    // Return the remaining path segments
+    const remainingSegments = segments.slice(startIndex);
+    return remainingSegments.join(path.sep);
   }
 
   /**
@@ -108,6 +159,10 @@ export class AssetExtractor {
    */
   private getFilesInDirectory(dirPath: string): string[] {
     const files: string[] = [];
+
+    if (!fs.existsSync(dirPath)) {
+      return files;
+    }
 
     const items = fs.readdirSync(dirPath);
 

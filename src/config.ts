@@ -7,8 +7,16 @@ export const config: Config = {
   packages: [
     {
       name: "@govflanders/vl-ui-design-system-style",
-      assetPaths: ["build/**/*.css"],
-      outputDir: "styles",
+      assetPaths: [
+        "**/*.css",
+        "**/*.woff",
+        "**/*.woff2",
+        "**/*.ttf",
+        "**/*.eot",
+        "**/*.svg", // if you have SVG fonts
+        "**/fonts/**/*", // catch any fonts in a fonts directory
+      ],
+      outputDir: "./",
     },
   ],
 };
