@@ -13,15 +13,22 @@ app.use(cors(corsConfig));
 app.use(
   "/",
   (_req, res, next) => {
-    // Additional headers for static assets
     res.header("Access-Control-Expose-Headers", "Content-Length, Content-Type");
     next();
   },
   express.static(path.join(__dirname, "../assets"))
 );
 
+// Root endpoint with information
+app.get("/", (req, res) => {
+  res.json({
+    name: "data.vlaanderen.be-assets",
+    description: "Self-hosted webuniversum assets",
+    message: "Assets are served under /assets path",
+  });
+});
 // List available assets
-app.get("/api/assets", (req, res) => {
+app.get("/api", (req, res) => {
   try {
     const extractor = new AssetExtractor(config.packages);
     const assets = extractor.getAvailableAssets();
@@ -47,7 +54,7 @@ app.get("/health", (_req, res) => {
 });
 
 const server = app.listen(config.port, () => {
-  console.log(`📁 Assets available at: http://localhost:${config.port}/assets`);
+  console.log(`📁 Assets available at: http://localhost:${config.port}/`);
 });
 
 // Graceful shutdown
