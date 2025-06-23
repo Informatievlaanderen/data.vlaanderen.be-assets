@@ -13,8 +13,9 @@ export const config: Config = {
         "**/*.woff2",
         "**/*.ttf",
         "**/*.eot",
-        "**/*.svg", // if you have SVG fonts
-        "**/fonts/**/*", // catch any fonts in a fonts directory
+        "**/*.svg",
+        "**/fonts/**/*",
+        "**/*.png", 
       ],
       outputDir: "./",
     },
