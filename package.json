@@ -1,6 +1,6 @@
 {
   "name": "data.vlaanderen.be-assets",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "Digitaal Vlaanderen <https://data.vlaanderen.be/id/organisatie/OVO002949>",
   "description": "A project to self-host all static webuniversum assets for data.vlaanderen.be",
   "main": "dist/index.js",

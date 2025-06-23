@@ -43,6 +43,9 @@ export class AssetExtractor {
       const sourcePath = path.join(packagePath, assetPath);
       await this.copyAssets(sourcePath, packagePath, outputPath);
     }
+
+    // Post-process CSS files to fix font paths after all assets are copied
+    await this.fixCssFontPaths(outputPath, pkg.name);
   }
 
   /**
@@ -110,6 +113,90 @@ export class AssetExtractor {
     // Return the remaining path segments
     const remainingSegments = segments.slice(startIndex);
     return remainingSegments.join(path.sep);
+  }
+
+  /**
+   * Fix font paths in CSS files after extraction
+   */
+  private async fixCssFontPaths(
+    outputPath: string,
+    packageName: string
+  ): Promise<void> {
+    const cssFiles = glob.globSync(path.join(outputPath, "**/*.css"));
+
+    for (const cssFile of cssFiles) {
+      try {
+        let content = fs.readFileSync(cssFile, "utf-8");
+        let hasChanges = false;
+
+        // Fix paths that reference the npm package directly
+        const packagePattern = new RegExp(
+          `url\\(["']?${packageName.replace(
+            /[.*+?^${}()|[\]\\]/g,
+            "\\$&"
+          )}/([^"')]+)["']?\\)`,
+          "gi"
+        );
+
+        content = content.replace(packagePattern, (match, assetPath) => {
+          hasChanges = true;
+          // Convert the asset path to our local structure
+          const cleanedAssetPath = this.removeBuildAssetsFromPath(assetPath);
+          const localPath = `/assets/${cleanedAssetPath}`;
+          console.log(`  Fixed font path: ${match} -> url("${localPath}")`);
+          return `url("${localPath}")`;
+        });
+
+        // Also fix any other common npm package patterns
+        const genericPackagePattern =
+          /url\(["']?@[^/]+\/[^/]+\/([^"')]+)["']?\)/gi;
+        content = content.replace(genericPackagePattern, (match, assetPath) => {
+          // Only process if it contains font-related paths
+          if (
+            assetPath.includes("font") ||
+            assetPath.includes(".woff") ||
+            assetPath.includes(".ttf") ||
+            assetPath.includes(".eot")
+          ) {
+            hasChanges = true;
+            const cleanedAssetPath = this.removeBuildAssetsFromPath(assetPath);
+            const localPath = `/assets/${cleanedAssetPath}`;
+            console.log(`  Fixed font path: ${match} -> url("${localPath}")`);
+            return `url("${localPath}")`;
+          }
+          return match;
+        });
+
+        // Fix relative paths that might be broken due to restructuring
+        content = content.replace(
+          /url\(["']?\.\.\/[^"')]*\.(woff2?|ttf|eot|svg)(\?[^"')]*)?["']?\)/gi,
+          (match, ext, query) => {
+            const fontFileMatch = match.match(/([^/]+\.(woff2?|ttf|eot|svg))/i);
+            if (fontFileMatch) {
+              hasChanges = true;
+              const fontFileName = fontFileMatch[1];
+              const localPath = `/assets/font/flanders/sans/${fontFileName}${
+                query || ""
+              }`;
+              console.log(
+                `  Fixed relative font path: ${match} -> url("${localPath}")`
+              );
+              return `url("${localPath}")`;
+            }
+            return match;
+          }
+        );
+
+        if (hasChanges) {
+          fs.writeFileSync(cssFile, content);
+          console.log(
+            `  ✓ Updated font paths in: ${path.relative(outputPath, cssFile)}`
+          );
+        }
+      } catch (error) {
+        console.warn(`Failed to fix paths in CSS file ${cssFile}:`, error);
+      }
+    }
   }
 
   /**
