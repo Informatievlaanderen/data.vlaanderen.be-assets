@@ -45,7 +45,14 @@ export class AssetExtractor {
     }
 
     // Post-process CSS files to fix font paths after all assets are copied
-    await this.fixCssFontPaths(outputPath, pkg.name);
+    if (pkg.name.includes("design-system-style")) {
+      await this.fixCssFontPaths(outputPath, pkg.name);
+    }
+
+    // Post-process JS files for browser compatibility
+    if (pkg.name.includes("design-system-vanilla")) {
+      await this.fixJavaScriptFiles(outputPath);
+    }
   }
 
   /**
@@ -116,6 +123,51 @@ export class AssetExtractor {
   }
 
   /**
+   * Fix JavaScript files for browser compatibility
+   */
+  private async fixJavaScriptFiles(outputPath: string): Promise<void> {
+    const jsFiles = glob.globSync(path.join(outputPath, "**/*.js"));
+
+    for (const jsFile of jsFiles) {
+      try {
+        let content = fs.readFileSync(jsFile, "utf-8");
+        let hasChanges = false;
+
+        // Remove ES6 module exports to make it browser-compatible
+        const exportPatterns = [
+          /export\s*{\s*[^}]*\s*}\s*;?\s*$/gm, // export { something };
+          /export\s+default\s+[^;]*;?\s*$/gm,   // export default something;
+          /export\s*\{[^}]*\}\s*;?\s*$/gm,      // export {item as default};
+        ];
+
+        exportPatterns.forEach(pattern => {
+          const originalContent = content;
+          content = content.replace(pattern, '');
+          if (originalContent !== content) {
+            hasChanges = true;
+          }
+        });
+
+        // Also remove any import statements that might cause issues
+        const importPattern = /import\s+.*?\s+from\s+['"][^'"]*['"];?\s*/gm;
+        const originalContent = content;
+        content = content.replace(importPattern, '');
+        if (originalContent !== content) {
+          hasChanges = true;
+          console.log(`  Removed import statements from: ${path.relative(outputPath, jsFile)}`);
+        }
+
+        if (hasChanges) {
+          fs.writeFileSync(jsFile, content);
+          console.log(`  ✓ Fixed JavaScript file: ${path.relative(outputPath, jsFile)}`);
+        }
+      } catch (error) {
+        console.warn(`Failed to fix JavaScript file ${jsFile}:`, error);
+      }
+    }
+  }
+
+  /**
    * Fix font paths in CSS files after extraction
    */
   private async fixCssFontPaths(
@@ -143,7 +195,7 @@ export class AssetExtractor {
           // Convert the asset path to our local structure
           const cleanedAssetPath = this.removeBuildAssetsFromPath(assetPath);
           const localPath = `/assets/${cleanedAssetPath}`;
-          console.log(`  Fixed font path: ${match} -> url("${localPath}")`);
+          console.log(`  Fixed asset path: ${match} -> url("${localPath}")`);
           return `url("${localPath}")`;
         });
 
@@ -151,17 +203,24 @@ export class AssetExtractor {
         const genericPackagePattern =
           /url\(["']?@[^/]+\/[^/]+\/([^"')]+)["']?\)/gi;
         content = content.replace(genericPackagePattern, (match, assetPath) => {
-          // Only process if it contains font-related paths
+          // Process if it contains font or image-related paths
           if (
             assetPath.includes("font") ||
+            assetPath.includes("image") ||
+            assetPath.includes("favicon") ||
+            assetPath.includes("icon") ||
             assetPath.includes(".woff") ||
             assetPath.includes(".ttf") ||
-            assetPath.includes(".eot")
+            assetPath.includes(".eot") ||
+            assetPath.includes(".png") ||
+            assetPath.includes(".jpg") ||
+            assetPath.includes(".jpeg") ||
+            assetPath.includes(".svg")
           ) {
             hasChanges = true;
             const cleanedAssetPath = this.removeBuildAssetsFromPath(assetPath);
             const localPath = `/assets/${cleanedAssetPath}`;
-            console.log(`  Fixed font path: ${match} -> url("${localPath}")`);
+            console.log(`  Fixed asset path: ${match} -> url("${localPath}")`);
             return `url("${localPath}")`;
           }
           return match;
@@ -190,7 +249,7 @@ export class AssetExtractor {
         if (hasChanges) {
           fs.writeFileSync(cssFile, content);
           console.log(
-            `  ✓ Updated font paths in: ${path.relative(outputPath, cssFile)}`
+            `  ✓ Updated asset paths in: ${path.relative(outputPath, cssFile)}`
           );
         }
       } catch (error) {

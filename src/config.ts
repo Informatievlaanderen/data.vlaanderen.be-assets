@@ -15,8 +15,13 @@ export const config: Config = {
         "**/*.eot",
         "**/*.svg",
         "**/fonts/**/*",
-        "**/*.png", 
+        "**/*.png",
       ],
+      outputDir: "./",
+    },
+    {
+      name: "@govflanders/vl-ui-design-system-vanilla",
+      assetPaths: ["dist/tooltip.js", "dist/core.js"],
       outputDir: "./",
     },
   ],
@@ -27,6 +32,7 @@ export const corsConfig: CorsOptions = {
     "https://data.vlaanderen.be",
     "https://*.vlaanderen.be",
     "http://localhost:3000",
+    "http://localhost:5501",
   ],
   methods: ["GET", "HEAD", "OPTIONS"],
   allowedHeaders: [
